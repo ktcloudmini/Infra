@@ -1,4 +1,3 @@
-# tests/utils.py
 import re
 from datetime import datetime
 import requests

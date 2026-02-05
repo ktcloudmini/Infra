@@ -1,4 +1,3 @@
-# tests/functional/test_fault.py
 import time
 import pytest
 import requests
@@ -83,8 +82,8 @@ def test_app_fault_recovery(alb_url, elbv2_client, tg_arn):
     )
 
     start_detect = time.time()
-    success_count = 0
-    check_count = 0
+    success_rate = 0
+    check_rate = 0
 
     while time.time() - start_detect < DETECT_TIMEOUT_SECONDS:
         current_ids = get_healthy_instance_ids(elbv2_client, tg_arn)
@@ -95,8 +94,8 @@ def test_app_fault_recovery(alb_url, elbv2_client, tg_arn):
 
         # ---- availability check
         if is_service_available(alb_url):
-            success_count += 1
-        check_count += 1
+            success_rate += POLL_INTERVAL_SHORT 
+        check_rate += POLL_INTERVAL_SHORT
 
         time.sleep(POLL_INTERVAL_SHORT)
         print(".", end="", flush=True)
@@ -123,12 +122,12 @@ def test_app_fault_recovery(alb_url, elbv2_client, tg_arn):
             elapsed = int(time.time() - start_recover)
             print(f"\n-> Recovery completed in {elapsed}s")
 
-            if check_count > 0:
-                availability = (success_count / check_count) * 100
+            if check_rate > 0:
+                availability = (success_rate / check_rate) * 100
                 print(
                     f"   Availability during recovery: "
-                    f"{availability:.1f}% ({success_count}/{check_count})"
-                )
+                    f"{availability:.1f}" #% ({success_rate}/{check_rate})"
+                )   
 
                 if availability < AVAILABILITY_THRESHOLD_PERCENT:
                     print("   [WARN] Some requests failed during recovery.")
@@ -139,8 +138,8 @@ def test_app_fault_recovery(alb_url, elbv2_client, tg_arn):
 
         #---- availability check
         if is_service_available(alb_url):
-            success_count += 1
-        check_count += 1
+            success_rate += POLL_INTERVAL_LONG
+        check_rate += POLL_INTERVAL_LONG
 
         time.sleep(POLL_INTERVAL_LONG)
         print(".", end="", flush=True)

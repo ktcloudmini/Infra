@@ -1,4 +1,3 @@
-# tests/funciontal/test_connectivity.py
 import pytest
 import requests
 from collections import Counter

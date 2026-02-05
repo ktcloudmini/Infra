@@ -1,4 +1,3 @@
-#tests/functional/test_scaling.py
 import time
 import threading
 
