@@ -262,3 +262,6 @@ credentials
 access_keys.csv
 *.pem
 *.pub
+
+# Tests config file
+infra_config.json
