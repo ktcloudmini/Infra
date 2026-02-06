@@ -16,8 +16,8 @@ SETUP_WAIT_SECONDS = 300            # 5 min
 DETECT_TIMEOUT_SECONDS = 180        # 3 min
 RECOVERY_TIMEOUT_SECONDS = 600      # 10 min
 
-POLL_INTERVAL_SHORT = 5     # 빠른 상태변화 감지용 (e.g. ALB health check)
-POLL_INTERVAL_LONG = 10     # 느린 복구 대기용 (ASG instance recovery)
+POLL_INTERVAL_SHORT = 5     # 상태변화 감지용
+POLL_INTERVAL_LONG = 10     # 느린 복구 대기용 
 
 AVAILABILITY_THRESHOLD_PERCENT = 95
 
@@ -126,7 +126,7 @@ def test_app_fault_recovery(alb_url, elbv2_client, tg_arn):
                 availability = (success_rate / check_rate) * 100
                 print(
                     f"   Availability during recovery: "
-                    f"{availability:.1f}" #% ({success_rate}/{check_rate})"
+                    f"{availability:.1f} %" #({success_rate}/{check_rate})"
                 )   
 
                 if availability < AVAILABILITY_THRESHOLD_PERCENT:

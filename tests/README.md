@@ -149,7 +149,13 @@ terraform init
 terraform apply
 terraform output -json > ../infra_config.json
 ```
-> **주의** 본 샘플은 임시 인프라로, Backend 없이 Local State를 사용하기 때문에 인프라를 생성한 PC에서만 `terraform destroy`가 가능합니다. 
+> **참고**
+>
+> `infra_config.json`에 나타나는 alb_dns_url로 만들어진 서버에 접속할 수 있습니다. 
+
+> **주의**
+> 
+> 본 샘플은 임시 인프라로, Backend 없이 Local State를 사용하기 때문에 인프라를 생성한 PC에서만 `terraform destroy`가 가능합니다. 
 > 
 > 테스트 종료 후 `terraform destroy`를 권장하며,
 >
