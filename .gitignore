@@ -40,3 +40,32 @@ Thumbs.db
 # Backup files
 *.backup
 *.bak
+
+# Python Core
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Python Environments
+.venv
+venv/
+
+# Python Build & Testing
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# AWS Custom
+.aws/
+credentials
+access_keys.csv
+*.pem
+*.pub
+
+# Tests file
+infra_config.json
+tests/fixtures
