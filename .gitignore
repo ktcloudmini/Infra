@@ -68,4 +68,4 @@ access_keys.csv
 
 # Tests file
 infra_config.json
-tests/fixtures
+tests/fixtures/
