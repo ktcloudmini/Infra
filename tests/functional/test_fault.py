@@ -89,7 +89,11 @@ def test_app_fault_recovery(alb_url, elbv2_client, tg_arn):
         current_ids = get_healthy_instance_ids(elbv2_client, tg_arn)
 
         if len(current_ids) < len(initial_ids):
-            print("\n-> Fault detected by ALB.")
+            detection_time = int(time.time()-start_detect)
+            print(
+                f"\n-> Fault detected by ALB in about "
+                f"{detection_time}s after fault injection."
+                )
             break
 
         # ---- availability check
@@ -120,7 +124,9 @@ def test_app_fault_recovery(alb_url, elbv2_client, tg_arn):
 
         if len(current_ids) >= len(initial_ids):
             elapsed = int(time.time() - start_recover)
-            print(f"\n-> Recovery completed in {elapsed}s")
+            print(
+                f"\n-> Recovery completed in {elapsed}s "
+                f"after fault detection.")
 
             if check_rate > 0:
                 availability = (success_rate / check_rate) * 100
@@ -150,13 +156,13 @@ def test_app_fault_recovery(alb_url, elbv2_client, tg_arn):
 
 
 
-def test_infra_fault_recovery(asg_client, elbv2_client, tg_arn, alb_url):
+def test_infra_fault_recovery(ec2_client, elbv2_client, tg_arn, alb_url):
     """
     [Scenario B] Infrastructure fault recovery (Terminate Instance)
 
     목적:
     - 인스턴스 강제 종료 시에도 서비스가 유지되는지
-    - ASG Self-Healing 동작 여부 검증
+    - ASG Self-Healing 동작 및 소요시간 검증
     """
     print("\n[Scenario B] Infrastructure fault recovery (Terminate Instance)")
 
@@ -165,10 +171,7 @@ def test_infra_fault_recovery(asg_client, elbv2_client, tg_arn, alb_url):
     victim_id = initial_ids[0]
     print(f"[Step 1] Terminating instance: {victim_id}")
 
-    asg_client.terminate_instance_in_auto_scaling_group(
-        InstanceId=victim_id,
-        ShouldDecrementDesiredCapacity=False,
-    )
+    ec2_client.terminate_instances(InstanceIds=[victim_id])
 
     # Step 2: 복구 및 가용성 모니터링
     print(

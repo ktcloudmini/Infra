@@ -84,6 +84,7 @@ class Config:
     FAULT_MODE = os.getenv("FAULT_MODE", "single").lower()
 
     ENABLE_SCALING = os.getenv("ENABLE_SCALING", "0") == "1"
+    SCALING_WEIGHT = int(os.getenv("SCALING_WEIGHT", "20"))
 
     USE_STEP_SHAPE = os.getenv("USE_STEP_SHAPE", "0") == "1"
     STEP_TIME = int(os.getenv("STEP_TIME", "180"))
@@ -119,7 +120,7 @@ class BaseUser(HttpUser):
 
 class ObserveUser(BaseUser):
     """OBSERVE 트래픽: LB 분산/지연/실패 확인용."""
-    weight = 8
+    weight = 100 - Config.SCALING_WEIGHT if Config.ENABLE_SCALING else 100
     wait_time = between(Config.OBS_WAIT_MIN, Config.OBS_WAIT_MAX)
 
     @task(1)
@@ -129,7 +130,7 @@ class ObserveUser(BaseUser):
 
 class ScalingUser(BaseUser):
     """WORK 트래픽: /work 호출로 CPU load 유도 (autoscaling 트리거용)."""
-    weight = 2 if Config.ENABLE_SCALING else 0
+    weight = Config.SCALING_WEIGHT if Config.ENABLE_SCALING else 0
     wait_time = constant(5)  # 고정 5s 간격 (WORK_SEC와 별개)
 
     @task(1)
