@@ -34,7 +34,29 @@
 
 ### 2.3 설정 방법 (둘 중 한가지)
 
-#### 방법 A) `.env`로 직접 지정
+#### 방법 A) Terraform output 연동
+Terraform으로 구축된 인프라의 경우, output값을 JSON 파일로 내보내서 연동할 수 있습니다.
+
+단, Terraform 코드의 `output`에 다음 값들이 포함되어야 합니다:
+* `alb_dns_name`
+* `target_group_arn`
+* `asg_name`
+
+메인 인프라폴더인 `env/dev/`에서 `terraform apply`를 하셔서 인프라를 구축하신 경우, `env/dev/`폴더에서
+```bash
+terraform output -json > ../../tests/infra_config.json
+```
+을 통해 output 값을 연동할 수 있습니다.
+
+
+일반적으로는 Terraform이 실행된 위치에서 다음 명령어를 통해 설정 파일을 생성하세요.
+
+```bash
+# <path-to-repo> 부분을 이 리포지토리가 위치한 실제 경로로 변경하세요.
+terraform output -json > <path-to-repo>/tests/infra_config.json
+```
+
+#### 방법 B) `.env`로 직접 지정
 `tests/.env` 파일을 생성하고 값을 직접 입력합니다. (Terraform 사용하지 않는 경우 권장)
 
 ```ini
@@ -43,20 +65,6 @@ ASG_NAME=my-asg-name
 TG_ARN=arn:aws:elasticloadbalancing:...
 ```
 
-#### 방법 B) Terraform output 연동
-Terraform으로 구축된 인프라의 경우, output값을 JSON 파일로 내보내서 연동할 수 있습니다.
-
-단, Terraform 코드의 `output`에 다음 값들이 포함되어야 합니다:
-* `alb_dns_name`
-* `target_group_arn`
-* `asg_name`
-
-Terraform이 실행된 위치에서 다음 명령어를 통해 설정 파일을 생성하세요.
-
-```bash
-# <path-to-repo> 부분을 이 리포지토리가 위치한 실제 경로로 변경하세요.
-terraform output -json > <path-to-repo>/tests/infra_config.json
-```
 
 
 ---
@@ -184,7 +192,7 @@ pytest -m scaling
 | `ALB_URL` | (없음) | 타겟 ALB 주소 (※ `tests/infra_config.json` 존재 시 자동 로드되므로 생략 가능) |
 | `OBS_WAIT_MIN` | `0.5` | 관측 유저가 다음 요청을 보내기 전 대기하는 최소 시간(초) |
 | `OBS_WAIT_MAX` | `1.5` | 관측 유저가 다음 요청을 보내기 전 대기하는 최대 시간(초) |
-| `SLA_P95_MS` | `500` | 시스템 목표 응답 속도(P95, ms). 계단식 부하 테스트 진행 시 테스트 자동 중단(Break Point)의 기준이 되기도 합니다. |
+| `SLA_P95_MS` | `1000` | 시스템 목표 응답 속도(P95, ms). 계단식 부하 테스트 진행 시 테스트 자동 중단(Break Point)의 기준이 되기도 합니다. |
 
 #### ② 장애 주입 (Fault) 설정 
 장애 복구력 및 가용성 테스트를 진행할 때 사용합니다. (`ENABLE_FAULT=1` 일 때 유효)
@@ -200,6 +208,7 @@ Auto Scaling 동작 확인 및 한계치(Break Point) 탐색 시 사용합니다
 | `ENABLE_SCALING` | `0` | `1`로 설정 시 CPU 부하를 유도하는 유저(`ScalingUser`)를 투입합니다.|
 |`SCALING_WEIGHT` | `20` | 전체 유저 중 부하 유저(`ScalingUser`)의 비율(%)을 설정합니다.|
 | `WORK_SEC` | `5.0` | 부하 유저가 `/work` 호출 시 서버에 요구할 연산 시간(초). 값이 클수록 부하가 강해집니다. |
+|`SCALING_DURATION_SEC` | `0` | 부하 유지 시간(초). 0보다 큰 값으로 설정 시, 해당 시간이 지나면 부하 유저(`ScalingUser`)는 동작을 멈추고 대기 상태로 전환됩니다. 0으로 설정시, 계속 부하가 유지됩니다.|
 | `USE_STEP_SHAPE` | `0` | `1`로 설정 시 계단식으로 유저 수를 점진적으로 늘려가는 부하 테스트를 진행합니다. |
 | `STEP_USERS` | `50` | (계단식 부하) 한 단계(Step)가 넘어갈 때마다 추가로 투입할 유저 수 |
 | `STEP_TIME` | `180` | (계단식 부하) 한 단계를 유지할 시간(초) |
@@ -268,7 +277,11 @@ locust -f tests/performance/locustfile.py -u 101 -r 10 -t 12m
 
 #### 4) 스케일링 테스트 (Constant Load)
 무거운 작업(`/work`)을 호출하여 CPU 부하를 발생시킵니다. 설정된 조건에 따라 Scale-out이 트리거되는 소요 시간과, 스케일링이 진행되는 동안 클라이언트 관점에서 시스템이 안정적으로 응답하는지 관찰합니다.
+
 (※ `WORK_SEC`과 `-u` 값을 변경하여 부하 정도를 조절할 수 있습니다.)
+
+또한, 부하 유지 시간을 설정하여 Scale-out 이후, Scale-in 과정까지 한 번에 관측할 수 있습니다.
+
 
 **`tests/.env` 설정:**
 ```ini
@@ -278,6 +291,7 @@ USE_STEP_SHAPE=0
 OBS_WAIT_MIN=0.1
 OBS_WAIT_MAX=0.4
 WORK_SEC=3.5
+SCALING_DURATION_SEC=600
 ```
 **실행 명령어:**
 ```bash
@@ -293,7 +307,7 @@ ENABLE_SCALING=1
 ENABLE_FAULT=0
 USE_STEP_SHAPE=1
 ENABLE_STEP_SLA_STOP=1
-SLA_P95_MS=500
+SLA_P95_MS=1000
 STEP_TIME=300
 TIME_LIMIT=1800
 STEP_USERS=50

@@ -248,6 +248,7 @@ class MetricsTracker:
 
         self.instance_hits.clear()
         self.server_first_seen = {}
+        self.server_last_seen = {}
 
         self.first_error_time = None
         self.last_error_time = None
@@ -314,10 +315,10 @@ class MetricsTracker:
             self.instance_hits[server_id] += 1
             if server_id not in self.server_first_seen:
                 self.server_first_seen[server_id] = now
+            self.server_last_seen[server_id] = now
 
-    # ==========================================
-    # Summary 출력 영역 (목차 형태로 분리)
-    # ==========================================
+    
+    # --- Summary 출력 영역 (목차 형태로 분리)
 
     def print_summary(self, environment, **kwargs):
         """이벤트 종료 시 호출되는 메인 Summary 출력 함수"""
@@ -382,29 +383,66 @@ class MetricsTracker:
         if total_hits == 0:
             print("  No host data collected via OBSERVE_PATH.")
             print("  Ensure the server response includes 'Host' or 'Hostname'.")
-        else:
-            for server, count in sorted(self.instance_hits.items(), key=lambda x: x[1], reverse=True):
-                ratio = (count / total_hits) * 100
-                print(f"  {server:25} | Hits: {count:6} | Ratio: {ratio:5.1f}%")
+            return
+        '''for server, count in sorted(self.instance_hits.items(), key=lambda x: x[1], reverse=True):
+            ratio = (count / total_hits) * 100
+            print(f"  {server:25} | Hits: {count:6} | Ratio: {ratio:5.1f}%")
 
-            print(f"  Distinct Servers Detected: {len(self.instance_hits)}")
+        print(f"  Distinct Servers Detected: {len(self.instance_hits)}")
 
-            if self.test_start_ts is not None:
-                cutoff = self.test_start_ts + self.config.INITIAL_HOST_WINDOW_SEC
-                initial_hosts = {h for h, ts in self.server_first_seen.items() if ts <= cutoff}
-                new_hosts = [(h, ts) for h, ts in self.server_first_seen.items() if ts > cutoff]
-                new_hosts.sort(key=lambda x: x[1])
+        if self.test_start_ts is not None:
+            cutoff = self.test_start_ts + self.config.INITIAL_HOST_WINDOW_SEC
+            initial_hosts = {h for h, ts in self.server_first_seen.items() if ts <= cutoff}
+            new_hosts = [(h, ts) for h, ts in self.server_first_seen.items() if ts > cutoff]
+            new_hosts.sort(key=lambda x: x[1])
 
-                print("\n[Scaling Activity] (OBSERVE-based)")
-                print(f"  Initial Hosts : {sorted(list(initial_hosts))}")
-                if new_hosts:
-                    print("  New Hosts Detected (scale-out or replacement):")
-                    for h, ts in new_hosts:
-                        dt = ts - self.test_start_ts
-                        clock = time.strftime("%H:%M:%S", time.localtime(ts))
-                        print(f"    + {h} (detected at {dt:.1f}s | {clock})")
+            print("\n[Scaling Activity] (OBSERVE-based)")
+            print(f"  Initial Hosts : {sorted(list(initial_hosts))}")
+            if new_hosts:
+                print("  New Hosts Detected (scale-out or replacement):")
+                for h, ts in new_hosts:
+                    dt = ts - self.test_start_ts
+                    clock = time.strftime("%H:%M:%S", time.localtime(ts))
+                    print(f"    + {h} (detected at {dt:.1f}s | {clock})")
+            else:
+                print("  No new hosts detected during the test.")'''
+        for server, count in sorted(self.instance_hits.items(), key=lambda x: x[1], reverse=True):
+            ratio = (count / total_hits) * 100
+            print(f"  {server:25} | Hits: {count:6} | Ratio: {ratio:5.1f}%")
+
+        print(f"  Distinct Servers Detected: {len(self.instance_hits)}")
+
+        if self.test_start_ts is not None:
+            cutoff = self.test_start_ts + self.config.INITIAL_HOST_WINDOW_SEC
+            initial_hosts = [h for h, ts in self.server_first_seen.items() if ts <= cutoff]
+            new_hosts = [(h, ts) for h, ts in self.server_first_seen.items() if ts > cutoff]
+            new_hosts.sort(key=lambda x: x[1])
+
+            print("\n[Scaling Activity]")
+            print(f"  Initial Hosts : {sorted(initial_hosts)}")
+            if new_hosts:
+                print("  New Hosts Detected:")
+                for h, ts in new_hosts:
+                    dt = ts - self.test_start_ts
+                    clock = time.strftime("%H:%M:%S", time.localtime(ts))
+                    print(f"    + {h} (detected at {dt:.1f}s | {clock})")
+            else:
+                print("  No new hosts detected during the test.")
+
+            print("\n[Server Lifespan]")
+            current_time = time.time()
+            for h in sorted(self.instance_hits.keys()):
+                first_sec = self.server_first_seen[h] - self.test_start_ts
+                last_sec = self.server_last_seen.get(h, self.server_first_seen[h]) - self.test_start_ts
+                
+                time_since_last_hit = current_time - self.server_last_seen.get(h, current_time)
+                
+                if time_since_last_hit > 60:
+                    status = "TERMINATED"
                 else:
-                    print("  No new hosts detected during the test.")
+                    status = "ALIVE"
+                    
+                print(f"    - {h:25} | {status:10} | First seen: {first_sec:6.1f}s ~ Last seen: {last_sec:6.1f}s")
 
     def _print_reliability_metrics(self):
         stats_total = self.locust_env.stats.total

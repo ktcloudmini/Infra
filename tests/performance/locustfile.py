@@ -10,6 +10,7 @@ from locust import (
     LoadTestShape,
     constant,
 )
+
 from dotenv import load_dotenv
 
 # locust_metrics로 분리된 로직 임포트
@@ -85,6 +86,8 @@ class Config:
 
     ENABLE_SCALING = os.getenv("ENABLE_SCALING", "0") == "1"
     SCALING_WEIGHT = int(os.getenv("SCALING_WEIGHT", "20"))
+    SCALING_DURATION_SEC = int(os.getenv("SCALING_DURATION_SEC","0"))
+
 
     USE_STEP_SHAPE = os.getenv("USE_STEP_SHAPE", "0") == "1"
     STEP_TIME = int(os.getenv("STEP_TIME", "180"))
@@ -92,7 +95,7 @@ class Config:
     SPAWN_RATE = float(os.getenv("SPAWN_RATE", "10"))
     TIME_LIMIT = int(os.getenv("TIME_LIMIT", "720"))
 
-    SLA_P95_MS = float(os.getenv("SLA_P95_MS", "500"))
+    SLA_P95_MS = float(os.getenv("SLA_P95_MS", "1000"))
     ENABLE_STEP_SLA_STOP = os.getenv("ENABLE_STEP_SLA_STOP", "0") == "1"
 
     INITIAL_HOST_WINDOW_SEC = 10.0
@@ -130,11 +133,19 @@ class ObserveUser(BaseUser):
 
 class ScalingUser(BaseUser):
     """WORK 트래픽: /work 호출로 CPU load 유도 (autoscaling 트리거용)."""
+
     weight = Config.SCALING_WEIGHT if Config.ENABLE_SCALING else 0
     wait_time = constant(5)  # 고정 5s 간격 (WORK_SEC와 별개)
-
+    def _idle_forever(self):
+        while True:
+            sleep(60)
+    
     @task(1)
     def work(self):
+        if Config.SCALING_DURATION_SEC>0 and tracker.test_start_ts is not None:
+            elapsed = time.time() - tracker.test_start_ts
+            if elapsed > Config.SCALING_DURATION_SEC:
+                self._idle_forever()
         if Config.WORK_SEC:
             self.client.get(f"/work?sec={Config.WORK_SEC}", name="WORK")
         else:

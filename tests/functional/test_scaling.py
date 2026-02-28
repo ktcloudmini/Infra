@@ -14,7 +14,7 @@ LOAD_THREAD_COUNT = 4
 LOAD_SEC = 40
 RETRIGGER_EVERY = 50 
 # C = 50 *(LOAD_THREAD_COUNT) * (LOAD_SEC)/(RETRIGGER EVERY)
-# 140<C<210
+# 120<C<180
 
 SCALE_OUT_TIMEOUT_SECONDS = 900   # 15 min
 SCALE_IN_TIMEOUT_SECONDS = 1500    # 25 min
@@ -99,36 +99,36 @@ def test_asg_scaling_lifecycle(alb_url, asg_client, asg_name, elbv2_client, tg_a
         if scale_out_capacity is None:
             pytest.fail(f"Scale-out not detected within {SCALE_OUT_TIMEOUT_SECONDS}s (current={current_capacity})")
         
-    # ---- Step 4. Load Stop    
+
+        # ---- Step 4. Scale-out check (Healthy target 실제로 증가하는지)
+        print(f"[{now_str()}] [CHECK] Waiting for new healthy targets...", end="",flush=True,)
+        scale_out_healthy_ids = None
+        start_health = time.time()
+        while time.time() - start_health < SCALE_OUT_TIMEOUT_SECONDS:
+            current_ids = get_healthy_target_instance_ids(elbv2_client, tg_arn)
+
+            if len(current_ids) > len(initial_healthy_ids):
+                scale_out_healthy_ids = current_ids
+                new_ids = set(current_ids) - set(initial_healthy_ids)
+                print(
+                    f"\n[{now_str()}] [PASS] New healthy targets detected: {list(new_ids)}"
+                )
+                break
+
+            time.sleep(SCALE_OUT_POLL_INTERVAL)
+            print(".", end="", flush=True)
+        if scale_out_healthy_ids is None:
+            pytest.fail(
+                "Scale-out detected but no new healthy targets joined ALB "
+                f"within {SCALE_OUT_TIMEOUT_SECONDS}s"
+            )
+    
+    # ---- Step 5. Load Stop    
     finally:
         print(f"[{now_str()}] [INFO] Stopping load generation")
         stop_event.set()
         for t in threads:
             t.join()
-
-    # ---- Step 5. Scale-out check (Healthy target 실제로 증가하는지)
-    print(f"[{now_str()}] [CHECK] Waiting for new healthy targets...", end="",flush=True,)
-    scale_out_healthy_ids = None
-    start_health = time.time()
-    while time.time() - start_health < SCALE_OUT_TIMEOUT_SECONDS:
-        current_ids = get_healthy_target_instance_ids(elbv2_client, tg_arn)
-
-        if len(current_ids) > len(initial_healthy_ids):
-            scale_out_healthy_ids = current_ids
-            new_ids = set(current_ids) - set(initial_healthy_ids)
-            print(
-                f"\n[{now_str()}] [PASS] New healthy targets detected: {list(new_ids)}"
-            )
-            break
-
-        time.sleep(SCALE_OUT_POLL_INTERVAL)
-        print(".", end="", flush=True)
-    if scale_out_healthy_ids is None:
-        pytest.fail(
-            "Scale-out detected but no new healthy targets joined ALB "
-            f"within {SCALE_OUT_TIMEOUT_SECONDS}s"
-        )
-    
 
     # ---- Step 6. Scale-in decision check (DesiredCapacity 감소)
     print(
