@@ -100,7 +100,7 @@ resource "aws_cloudwatch_metric_alarm" "cpu_high" {
   period              = 60
   statistic           = "Average"
   threshold           = 60
-  treat_missing_data  = "notBreaching"
+  treat_missing_data  = "missing"
 
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.this.name
@@ -118,7 +118,7 @@ resource "aws_cloudwatch_metric_alarm" "cpu_low" {
   period              = 60
   statistic           = "Average"
   threshold           = 20
-  treat_missing_data  = "notBreaching"
+  treat_missing_data  = "missing"
 
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.this.name

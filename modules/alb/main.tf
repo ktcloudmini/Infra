@@ -15,6 +15,7 @@ resource "aws_lb_target_group" "this" {
   port     = 8080
   protocol = "HTTP"
   vpc_id   = var.vpc_id
+  deregistration_delay = 30
 
   health_check {
     enabled             = true
