@@ -24,7 +24,6 @@ AWS 인프라를 자동으로 구축하고 운영 환경에서도 **재현 가�
 - Private Subnet 보안 아키텍처 구축
 - NAT Instance 기반 Outbound 네트워크 설계
 - Auto Scaling Group 구성
-- GitHub Actions Self-hosted Runner 자동화
 - Prometheus Monitoring 연동 준비 (node_exporter)
 
 ---
